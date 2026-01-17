@@ -270,20 +270,39 @@ public final class BukkitListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockFertilize(final @NotNull BlockFertilizeEvent event) {
+        final Block block = event.getBlock();
+        final Material type = block.getType();
+        final List<BlockState> destinations = event.getBlocks();
+
+        final EnumSet<Material> destinationsToUntrack = this.blockTrackerConfig.destinationsToUntrackOnBoneMeal.get(type);
+        if (destinationsToUntrack != null) {
+            for (final BlockState destination : destinations) {
+                if (destinationsToUntrack.contains(destination.getType())) {
+                    this.trackingManager.untrackByState(destination);
+                    continue;
+                }
+
+                if (this.blockTrackerConfig.disableBoneMealTracking) {
+                    continue;
+                }
+
+                this.trackingManager.trackByState(destination);
+            }
+        }
+
         if (this.blockTrackerConfig.disableBoneMealTracking) {
             return;
         }
 
-        final Block block = event.getBlock();
-        final Material type = block.getType();
-
+        // these cannot be grown without bone meal
         if (type == Material.CRIMSON_FUNGUS || type == Material.WARPED_FUNGUS) {
             this.trackingManager.untrackByBlock(block);
             return;
         }
 
-        final List<BlockState> blocks = event.getBlocks();
-        this.trackingManager.trackByStateIterable(blocks);
+        if (destinationsToUntrack == null) {
+            this.trackingManager.trackByStateIterable(destinations);
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

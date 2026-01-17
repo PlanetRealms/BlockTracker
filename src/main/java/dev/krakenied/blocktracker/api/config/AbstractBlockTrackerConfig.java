@@ -198,6 +198,9 @@ public abstract class AbstractBlockTrackerConfig<Y, M extends Enum<M>> {
             }
         }
     }};
+    public EnumMap<M, EnumSet<M>> destinationsToUntrackOnBoneMeal = UnsafeUtil.stringToObjectMap2EnumToEnumSetMap(this.getMaterialClass(), null, Map.of(
+            "MOSS_BLOCK", List.of("MOSS_BLOCK")
+    ));
 
     private void options() {
         this.trackPistonHeads = this.getBoolean("track-piston-heads", this.trackPistonHeads, List.of(
@@ -228,6 +231,12 @@ public abstract class AbstractBlockTrackerConfig<Y, M extends Enum<M>> {
                 "were replaced during the placement event. For instance, setting WAXED_COPPER_BLOCK: [COPPER_BLOCK]",
                 "ensures that waxing a block will not be tracked. Conversely, COPPER_BLOCK: [WAXED_COPPER_BLOCK]",
                 "is needed to prevent tracking of unwaxing actions."
+        ));
+        this.destinationsToUntrackOnBoneMeal = this.getEnum2EnumSetMap(this.getMaterialClass(), "destinations-to-untrack-on-bone-meal", this.destinationsToUntrackOnBoneMeal, List.of(
+                "Specifies the map of source block materials to destination block materials that should be",
+                "untracked when bone meal is used. When bone meal is applied to a tracked source block, the",
+                "source block remains tracked, but any blocks that are transformed or grown into one of the",
+                "specified destination materials will be removed from tracking."
         ));
     }
 }

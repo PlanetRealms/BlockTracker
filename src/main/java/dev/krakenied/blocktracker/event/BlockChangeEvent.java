@@ -1,7 +1,6 @@
 package dev.krakenied.blocktracker.event;
 
 import lombok.Getter;
-import lombok.Setter;
 import org.bukkit.block.Block;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.HandlerList;
@@ -15,17 +14,39 @@ public final class BlockChangeEvent extends BlockEvent implements Cancellable {
 
     private final @NotNull BlockChangeType changeType;
     private final @Nullable Block destinationBlock;
-    @Setter
+    private final boolean cancellationSupported;
     private boolean cancelled;
 
-    public BlockChangeEvent(@NotNull Block block, @NotNull BlockChangeType changeType) {
-        this(block, changeType, null);
+    public BlockChangeEvent(final @NotNull Block block, final @NotNull BlockChangeType changeType) {
+        this(block, changeType, null, true);
     }
 
-    public BlockChangeEvent(@NotNull Block block, @NotNull BlockChangeType changeType, @Nullable Block destinationBlock) {
+    public BlockChangeEvent(final @NotNull Block block, final @NotNull BlockChangeType changeType, final boolean cancellationSupported) {
+        this(block, changeType, null, cancellationSupported);
+    }
+
+    public BlockChangeEvent(final @NotNull Block block, final @NotNull BlockChangeType changeType, final @Nullable Block destinationBlock) {
+        this(block, changeType, destinationBlock, true);
+    }
+
+    public BlockChangeEvent(
+            final @NotNull Block block,
+            final @NotNull BlockChangeType changeType,
+            final @Nullable Block destinationBlock,
+            final boolean cancellationSupported
+    ) {
         super(block);
         this.changeType = changeType;
         this.destinationBlock = destinationBlock;
+        this.cancellationSupported = cancellationSupported;
+    }
+
+    @Override
+    public void setCancelled(final boolean cancelled) {
+        if (cancelled && !this.cancellationSupported) 
+            return;
+
+        this.cancelled = cancelled;
     }
 
     public static HandlerList getHandlerList() {

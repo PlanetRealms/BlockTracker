@@ -5,14 +5,14 @@ import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
-public final class BukkitBlockTrackerPlugin extends JavaPlugin {
+public final class BlockTrackerPlugin extends JavaPlugin {
 
     @Getter
     private final BukkitTrackingManager trackingManager = new BukkitTrackingManager();
 
     @Override
     public void onEnable() {
-        BukkitBlockTrackerAPI.setInstance(this);
+        BlockTrackerAPI.setInstance(this);
 
         this.trackingManager.initializeLoadedWorlds();
         this.registerListeners();
@@ -34,6 +34,6 @@ public final class BukkitBlockTrackerPlugin extends JavaPlugin {
 
     @SuppressWarnings("unused")
     public static boolean isTracked(final @NotNull org.bukkit.block.Block block) {
-        return BukkitBlockTrackerAPI.isTracked(block);
+        return BlockTrackerAPI.isTracked(block);
     }
 }

@@ -18,6 +18,7 @@ import org.bukkit.block.data.type.TrapDoor;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.FallingBlock;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Cancellable;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -52,10 +53,10 @@ import java.util.List;
 
 public final class BukkitListener implements Listener {
 
-    private final BukkitBlockTrackerPlugin plugin;
+    private final BlockTrackerPlugin plugin;
     private final BukkitTrackingManager trackingManager;
 
-    public BukkitListener(final @NotNull BukkitBlockTrackerPlugin plugin) {
+    public BukkitListener(final @NotNull BlockTrackerPlugin plugin) {
         this.plugin = plugin;
         this.trackingManager = plugin.getTrackingManager();
     }
@@ -88,123 +89,104 @@ public final class BukkitListener implements Listener {
 
     // Direct block placements and breaks
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockPlace(final @NotNull BlockPlaceEvent event) {
         final Block block = event.getBlock();
-        this.trackingManager.trackByBlock(block);
+        this.cancelIfNeeded(event, this.trackingManager.trackByBlockResult(block));
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockMultiPlace(final @NotNull BlockMultiPlaceEvent event) {
         final List<BlockState> states = event.getReplacedBlockStates();
-        this.trackingManager.trackByStateIterable(states);
+        this.cancelIfNeeded(event, this.trackingManager.trackByStateIterableResult(states));
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockBreak(final @NotNull BlockBreakEvent event) {
         final Block block = event.getBlock();
         final BlockData blockData = block.getBlockData();
-        this.untrackCustom(block, blockData);
+        this.cancelIfNeeded(event, this.untrackCustom(block, blockData));
     }
 
     // Explosions
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockExplode(final @NotNull BlockExplodeEvent event) {
         final List<Block> blocks = event.blockList();
-        this.trackingManager.untrackByBlockIterable(blocks);
+        this.cancelIfNeeded(event, this.trackingManager.untrackByBlockIterableResult(blocks));
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onEntityExplode(final @NotNull EntityExplodeEvent event) {
         final List<Block> blocks = event.blockList();
-        this.trackingManager.untrackByBlockIterable(blocks);
+        this.cancelIfNeeded(event, this.trackingManager.untrackByBlockIterableResult(blocks));
     }
 
     // Burns
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockBurn(final @NotNull BlockBurnEvent event) {
         final Block block = event.getBlock();
-        this.trackingManager.untrackByBlock(block);
+        this.cancelIfNeeded(event, this.trackingManager.untrackByBlockResult(block));
     }
 
     // Pistons
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockPistonExtend(final @NotNull BlockPistonExtendEvent event) {
+        final Block block = event.getBlock();
         final List<Block> blocks = event.getBlocks();
         final BlockFace direction = event.getDirection();
-        this.trackingManager.shiftByBlockList(blocks, direction);
-
-        final Block block = event.getBlock();
-        final boolean pistonTracked = this.trackingManager.isTrackedByBlock(block);
-
-        final Block pistonHeadBlock = block.getRelative(direction);
-        if (pistonTracked) {
-            this.trackingManager.trackByBlock(pistonHeadBlock);
-        } else {
-            this.trackingManager.untrackByBlock(pistonHeadBlock);
-        }
+        this.cancelIfNeeded(event, this.trackingManager.handlePistonExtend(block, blocks, direction));
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockPistonRetract(final @NotNull BlockPistonRetractEvent event) {
         final Block block = event.getBlock();
-        if (this.trackingManager.isTrackedByBlock(block)) {
-            final BlockFace pistonHeadFace = event.getDirection().getOppositeFace();
-            final Block pistonHeadBlock = block.getRelative(pistonHeadFace);
-            this.trackingManager.untrackByBlock(pistonHeadBlock);
-        }
-
-        if (!event.isSticky()) {
-            return;
-        }
-
         final List<Block> blocks = event.getBlocks();
         final BlockFace direction = event.getDirection();
-        this.trackingManager.shiftByBlockList(blocks, direction);
+        this.cancelIfNeeded(event, this.trackingManager.handlePistonRetract(block, event.isSticky(), blocks, direction));
     }
 
     // Trees & Structure growth
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onStructureGrow(final @NotNull StructureGrowEvent event) {
         final List<BlockState> states = event.getBlocks();
-        this.trackingManager.untrackByStateIterable(states);
+        this.cancelIfNeeded(event, this.trackingManager.untrackByStateIterableResult(states));
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockFertilize(final @NotNull BlockFertilizeEvent event) {
         final Block block = event.getBlock();
         final Material type = block.getType();
         final List<BlockState> destinations = event.getBlocks();
 
         if (type == Material.CRIMSON_FUNGUS || type == Material.WARPED_FUNGUS) {
-            this.trackingManager.untrackByBlock(block);
+            this.cancelIfNeeded(event, this.trackingManager.untrackByBlockResult(block));
             return;
         }
 
-        this.trackingManager.trackByStateIterable(destinations);
+        this.cancelIfNeeded(event, this.trackingManager.trackByStateIterableResult(destinations));
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onLeavesDecay(final @NotNull LeavesDecayEvent event) {
         final Block block = event.getBlock();
-        this.trackingManager.untrackByBlock(block);
+        this.cancelIfNeeded(event, this.trackingManager.untrackByBlockResult(block));
     }
 
     // Farms
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockGrow(final @NotNull BlockGrowEvent event) {
         final Block block = event.getBlock();
-        this.trackingManager.untrackByBlock(block);
+        this.cancelIfNeeded(event, this.trackingManager.untrackByBlockResult(block));
     }
 
     // Fluid flow block breaking
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockBreakBlock(final @NotNull BlockBreakBlockEvent event) {
         final Block source = event.getSource();
         final Material sourceType = source.getType();
@@ -214,12 +196,12 @@ public final class BukkitListener implements Listener {
         }
 
         final Block block = event.getBlock();
-        this.trackingManager.untrackByBlock(block);
+        this.trackingManager.untrackByBlockResult(block, false);
     }
 
     // Frost Walker
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onEntityBlockForm(final @NotNull EntityBlockFormEvent event) {
         final Entity entity = event.getEntity();
         if (!(entity instanceof Player)) {
@@ -227,20 +209,20 @@ public final class BukkitListener implements Listener {
         }
 
         final Block block = event.getBlock();
-        this.trackingManager.trackByBlock(block);
+        this.cancelIfNeeded(event, this.trackingManager.trackByBlockResult(block));
     }
 
     // Ice and other blocks fading
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockFade(final @NotNull BlockFadeEvent event) {
         final Block block = event.getBlock();
-        this.trackingManager.untrackByBlock(block);
+        this.cancelIfNeeded(event, this.trackingManager.untrackByBlockResult(block));
     }
 
     // Falling blocks
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onEntitySpawn(final @NotNull EntitySpawnEvent event) {
         final Entity entity = event.getEntity();
         if (!(entity instanceof FallingBlock)) {
@@ -252,11 +234,18 @@ public final class BukkitListener implements Listener {
             return;
         }
 
-        entity.setMetadata("block_tracker", new FixedMetadataValue(plugin, true));
-        this.trackingManager.untrackByBlock(block);
+        final BukkitTrackingManager.ChangeResult result = this.trackingManager.untrackByBlockResult(block);
+        if (result.isCancelled()) {
+            event.setCancelled(true);
+            return;
+        }
+
+        if (result == BukkitTrackingManager.ChangeResult.CHANGED) {
+            entity.setMetadata("block_tracker", new FixedMetadataValue(plugin, true));
+        }
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onEntityChangeBlock(final @NotNull EntityChangeBlockEvent event) {
         final Entity entity = event.getEntity();
         if (!(entity instanceof FallingBlock)) {
@@ -268,55 +257,47 @@ public final class BukkitListener implements Listener {
         }
 
         final Block block = event.getBlock();
-        this.trackingManager.trackByBlock(block);
+        this.cancelIfNeeded(event, this.trackingManager.trackByBlockResult(block));
     }
 
     // Untrack multi-block structures (beds, double plants, pistons)
 
-    private void untrackCustom(final @NotNull Block block, final @NotNull BlockData blockData) {
-        this.trackingManager.untrackByBlock(block);
+    private @NotNull BukkitTrackingManager.ChangeResult untrackCustom(final @NotNull Block block, final @NotNull BlockData blockData) {
+        final List<Block> blocks = new java.util.ArrayList<>();
+        blocks.add(block);
 
         final Block secondBlock;
 
-        if (blockData instanceof final Bisected bisected && !(blockData instanceof SmallDripleaf || blockData instanceof Stairs || blockData instanceof TrapDoor)) {
-            final Bisected.Half half = bisected.getHalf();
-
-            if (half == Bisected.Half.BOTTOM) {
-                secondBlock = block.getRelative(BlockFace.UP);
-            } else {
-                secondBlock = block.getRelative(BlockFace.DOWN);
+        switch (blockData) {
+            case final Bisected bisected when !(blockData instanceof SmallDripleaf || blockData instanceof Stairs || blockData instanceof TrapDoor) -> {
+                final Bisected.Half half = bisected.getHalf();
+                secondBlock = block.getRelative(half == Bisected.Half.BOTTOM ? BlockFace.UP : BlockFace.DOWN);
             }
-        } else if (blockData instanceof final Bed bed) {
-            final Bed.Part part = bed.getPart();
-            final BlockFace facing = bed.getFacing();
-
-            if (part == Bed.Part.FOOT) {
-                secondBlock = block.getRelative(facing);
-            } else {
-                secondBlock = block.getRelative(facing.getOppositeFace());
+            case final Bed bed -> {
+                final Bed.Part part = bed.getPart();
+                final BlockFace facing = bed.getFacing();
+                secondBlock = block.getRelative(part == Bed.Part.FOOT ? facing : facing.getOppositeFace());
             }
-        } else if (blockData instanceof final Piston piston) {
-            final BlockFace facing = piston.getFacing();
-
-            if (piston.isExtended()) {
-                secondBlock = block.getRelative(facing);
-            } else {
-                return;
+            case final Piston piston -> {
+                if (!piston.isExtended()) {
+                    return this.trackingManager.untrackByBlockIterableResult(blocks);
+                }
+                secondBlock = block.getRelative(piston.getFacing());
             }
-        } else if (blockData instanceof final PistonHead pistonHead) {
-            final BlockFace facing = pistonHead.getFacing();
-
-            secondBlock = block.getRelative(facing.getOppositeFace());
-        } else {
-            return;
+            case final PistonHead pistonHead ->
+                    secondBlock = block.getRelative(pistonHead.getFacing().getOppositeFace());
+            default -> {
+                return this.trackingManager.untrackByBlockIterableResult(blocks);
+            }
         }
 
-        this.trackingManager.untrackByBlock(secondBlock);
+        blocks.add(secondBlock);
+        return this.trackingManager.untrackByBlockIterableResult(blocks);
     }
 
     // Dragon Egg teleportation
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockFromTo(final @NotNull BlockFromToEvent event) {
         final Block from = event.getBlock();
         if (from.getType() != Material.DRAGON_EGG) {
@@ -324,32 +305,39 @@ public final class BukkitListener implements Listener {
         }
 
         final Block to = event.getToBlock();
-        this.trackingManager.move(from, to);
+        this.cancelIfNeeded(event, this.trackingManager.moveResult(from, to));
     }
 
     // Emptying and filling buckets
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onPlayerBucketEmpty(final @NotNull PlayerBucketEmptyEvent event) {
         final Block block = event.getBlock();
-        this.trackingManager.trackByBlock(block);
+        this.cancelIfNeeded(event, this.trackingManager.trackByBlockResult(block));
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onPlayerBucketFill(final @NotNull PlayerBucketFillEvent event) {
         final Block block = event.getBlock();
-        this.trackingManager.untrackByBlock(block);
+        this.cancelIfNeeded(event, this.trackingManager.untrackByBlockResult(block));
     }
 
     // Block spreading (e.g., Mycelium, Sculk, Chorus, Fire)
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockSpread(final @NotNull BlockSpreadEvent event) {
         final Block source = event.getSource();
         final Block block = event.getBlock();
 
         final boolean sourceTracked = this.trackingManager.isTrackedByBlock(source);
         if (sourceTracked) {
-            this.trackingManager.trackByBlock(block);
+            this.cancelIfNeeded(event, this.trackingManager.trackByBlockResult(block));
         }
     }
+
+    private void cancelIfNeeded(final @NotNull Cancellable event, final @NotNull BukkitTrackingManager.ChangeResult result) {
+        if (result.isCancelled()) {
+            event.setCancelled(true);
+        }
+    }
+
 }

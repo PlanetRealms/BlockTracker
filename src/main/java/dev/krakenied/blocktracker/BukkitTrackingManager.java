@@ -1,8 +1,8 @@
-package dev.krakenied.blocktracker.bukkit;
+package dev.krakenied.blocktracker;
 
-import dev.krakenied.blocktracker.api.data.WorldMap;
-import dev.krakenied.blocktracker.api.event.BlockChangeEvent;
-import dev.krakenied.blocktracker.api.event.BlockChangeType;
+import dev.krakenied.blocktracker.data.WorldMap;
+import dev.krakenied.blocktracker.event.BlockChangeEvent;
+import dev.krakenied.blocktracker.event.BlockChangeType;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectList;
 import org.bukkit.Bukkit;

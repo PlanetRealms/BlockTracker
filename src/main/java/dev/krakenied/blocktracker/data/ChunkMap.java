@@ -1,6 +1,6 @@
-package dev.krakenied.blocktracker.api.data;
+package dev.krakenied.blocktracker.data;
 
-import dev.krakenied.blocktracker.api.object.TrackedChunk;
+import dev.krakenied.blocktracker.object.TrackedChunk;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import org.jetbrains.annotations.Nullable;
 

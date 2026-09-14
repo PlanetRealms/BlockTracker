@@ -1,4 +1,4 @@
-package dev.krakenied.blocktracker.api.event;
+package dev.krakenied.blocktracker.event;
 
 public enum BlockChangeType {
     TRACK,

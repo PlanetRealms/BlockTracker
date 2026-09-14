@@ -1,6 +1,6 @@
-package dev.krakenied.blocktracker.api.object;
+package dev.krakenied.blocktracker.object;
 
-import dev.krakenied.blocktracker.api.data.PositionSet;
+import dev.krakenied.blocktracker.data.PositionSet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

@@ -1,6 +1,6 @@
-package dev.krakenied.blocktracker.bukkit;
+package dev.krakenied.blocktracker;
 
-import dev.krakenied.blocktracker.api.event.BlockChangeEvent;
+import dev.krakenied.blocktracker.event.BlockChangeEvent;
 import lombok.Getter;
 import org.bukkit.block.Block;
 import org.jetbrains.annotations.NotNull;
@@ -38,7 +38,11 @@ public final class BukkitBlockTrackerAPI {
                 callback.accept(event);
             } catch (final Throwable t) {
                 if (instance != null) {
-                    instance.getLogger().severe("Error executing BlockChangeCallback: " + t.getMessage());
+                    instance.getLogger().log(
+                            java.util.logging.Level.SEVERE,
+                            "Error executing BlockChangeCallback",
+                            t
+                    );
                 }
             }
         }

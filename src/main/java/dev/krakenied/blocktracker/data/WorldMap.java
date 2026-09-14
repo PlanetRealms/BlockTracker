@@ -1,6 +1,6 @@
-package dev.krakenied.blocktracker.api.data;
+package dev.krakenied.blocktracker.data;
 
-import dev.krakenied.blocktracker.bukkit.BukkitTrackedWorld;
+import dev.krakenied.blocktracker.BukkitTrackedWorld;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 
 import java.util.UUID;

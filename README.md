@@ -13,7 +13,7 @@ Using BlockTracker in your plugin
 <dependency>
     <groupId>dev.krakenied</groupId>
     <artifactId>blocktracker</artifactId>
-    <version>1.0.7</version>
+    <version>2.0.0-SNAPSHOT</version>
 </dependency>
 ```
 ##### Gradle
@@ -34,5 +34,5 @@ Using BlockTracker with LMBishop's [Quests](https://modrinth.com/plugin/quests) 
 ##### config.yml
 ```yml
 # PlayerBlockTracker class to be used with the hook
-playerblocktracker-class-name: "dev.krakenied.blocktracker.bukkit.BukkitBlockTrackerPlugin"
+playerblocktracker-class-name: "dev.krakenied.blocktracker.BukkitBlockTrackerPlugin"
 ```

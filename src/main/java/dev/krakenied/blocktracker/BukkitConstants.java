@@ -1,4 +1,4 @@
-package dev.krakenied.blocktracker.bukkit;
+package dev.krakenied.blocktracker;
 
 import org.bukkit.NamespacedKey;
 

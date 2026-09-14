@@ -1,4 +1,4 @@
-package dev.krakenied.blocktracker.bukkit;
+package dev.krakenied.blocktracker;
 
 import lombok.Getter;
 import org.bukkit.event.HandlerList;

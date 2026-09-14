@@ -1,4 +1,4 @@
-package dev.krakenied.blocktracker.api.data;
+package dev.krakenied.blocktracker.data;
 
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import org.jetbrains.annotations.NotNull;

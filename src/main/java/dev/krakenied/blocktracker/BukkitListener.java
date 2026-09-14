@@ -1,4 +1,4 @@
-package dev.krakenied.blocktracker.bukkit;
+package dev.krakenied.blocktracker;
 
 import io.papermc.paper.event.block.BlockBreakBlockEvent;
 import org.bukkit.Chunk;

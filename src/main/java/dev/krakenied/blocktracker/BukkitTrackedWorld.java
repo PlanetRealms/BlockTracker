@@ -1,7 +1,7 @@
-package dev.krakenied.blocktracker.bukkit;
+package dev.krakenied.blocktracker;
 
-import dev.krakenied.blocktracker.api.data.ChunkMap;
-import dev.krakenied.blocktracker.api.object.TrackedChunk;
+import dev.krakenied.blocktracker.data.ChunkMap;
+import dev.krakenied.blocktracker.object.TrackedChunk;
 import org.bukkit.Chunk;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;

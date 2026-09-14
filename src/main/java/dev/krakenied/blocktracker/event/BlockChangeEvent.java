@@ -43,8 +43,9 @@ public final class BlockChangeEvent extends BlockEvent implements Cancellable {
 
     @Override
     public void setCancelled(final boolean cancelled) {
-        if (cancelled && !this.cancellationSupported) 
+        if (cancelled && !this.cancellationSupported) {
             return;
+        }
 
         this.cancelled = cancelled;
     }

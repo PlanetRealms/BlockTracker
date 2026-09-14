@@ -15,7 +15,21 @@ public final class BlockTrackerAPI {
 
     @Getter
     private static BlockTrackerPlugin instance;
-    private static final List<Consumer<BlockChangeEvent>> callbacks = new CopyOnWriteArrayList<>();
+
+    /**
+     * Called before a tracked block change is committed.
+     * These callbacks may cancel the change when cancellation is supported.
+     */
+    private static final List<Consumer<BlockChangeEvent>> blockChangeCallbacks = new CopyOnWriteArrayList<>();
+
+    /**
+     * Called only after a tracked block change has actually been committed.
+     * These callbacks are notification-only; cancelling the event here has no effect.
+     */
+    private static final List<Consumer<BlockChangeEvent>> blockChangedCallbacks = new CopyOnWriteArrayList<>();
+
+    private BlockTrackerAPI() {
+    }
 
     static void setInstance(final @NotNull BlockTrackerPlugin instance) {
         BlockTrackerAPI.instance = instance;
@@ -25,17 +39,34 @@ public final class BlockTrackerAPI {
         return BlockTrackerAPI.instance.getTrackingManager().isTrackedByBlock(block);
     }
 
+    /**
+     * Registers a callback that runs before a tracked block change is committed.
+     * The callback may cancel the supplied event when
+     * {@link BlockChangeEvent#isCancellationSupported()} returns true.
+     */
     public static void registerBlockChangeCallback(final @NotNull Consumer<BlockChangeEvent> callback) {
-        callbacks.add(callback);
+        blockChangeCallbacks.add(callback);
     }
 
     public static void unregisterBlockChangeCallback(final @NotNull Consumer<BlockChangeEvent> callback) {
-        callbacks.remove(callback);
+        blockChangeCallbacks.remove(callback);
     }
 
     /**
-     * Fires the Bukkit event and then invokes the legacy callback API.
-     * Both Bukkit listeners and callbacks may cancel the change.
+     * Registers a notification callback that runs after the tracker has committed
+     * the change. This is the callback to use for synchronizing external state.
+     */
+    public static void registerBlockChangedCallback(final @NotNull Consumer<BlockChangeEvent> callback) {
+        blockChangedCallbacks.add(callback);
+    }
+
+    public static void unregisterBlockChangedCallback(final @NotNull Consumer<BlockChangeEvent> callback) {
+        blockChangedCallbacks.remove(callback);
+    }
+
+    /**
+     * Fires the Bukkit event and then invokes the pre-change callback API.
+     * Both Bukkit listeners and pre-change callbacks may cancel the change.
      *
      * @return true when the change is allowed, false when it was cancelled
      */
@@ -45,7 +76,25 @@ public final class BlockTrackerAPI {
         return !event.isCancelled();
     }
 
+    /**
+     * Invokes pre-change callbacks.
+     */
     public static void notifyBlockChange(final @NotNull BlockChangeEvent event) {
+        notifyCallbacks(blockChangeCallbacks, event, "BlockChangeCallback");
+    }
+
+    /**
+     * Invokes post-change callbacks after the tracker has committed the change.
+     */
+    public static void notifyBlockChanged(final @NotNull BlockChangeEvent event) {
+        notifyCallbacks(blockChangedCallbacks, event, "BlockChangedCallback");
+    }
+
+    private static void notifyCallbacks(
+            final @NotNull List<Consumer<BlockChangeEvent>> callbacks,
+            final @NotNull BlockChangeEvent event,
+            final @NotNull String callbackName
+    ) {
         for (final Consumer<BlockChangeEvent> callback : callbacks) {
             try {
                 callback.accept(event);
@@ -53,7 +102,7 @@ public final class BlockTrackerAPI {
                 if (instance != null) {
                     instance.getLogger().log(
                             java.util.logging.Level.SEVERE,
-                            "Error executing BlockChangeCallback",
+                            "Error executing " + callbackName,
                             t
                     );
                 }

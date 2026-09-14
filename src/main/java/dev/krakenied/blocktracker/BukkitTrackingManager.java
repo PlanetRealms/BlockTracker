@@ -92,11 +92,17 @@ public final class BukkitTrackingManager {
             return ChangeResult.UNCHANGED;
         }
 
-        if (!this.fireChange(new BlockChangeEvent(block, BlockChangeType.CREATED))) {
+        final BlockChangeEvent event = new BlockChangeEvent(block, BlockChangeType.CREATED);
+        if (!this.fireChange(event)) {
             return ChangeResult.CANCELLED;
         }
 
-        return this.rawTrackByBlock(block) ? ChangeResult.CHANGED : ChangeResult.UNCHANGED;
+        if (!this.rawTrackByBlock(block)) {
+            return ChangeResult.UNCHANGED;
+        }
+
+        this.fireChanged(event);
+        return ChangeResult.CHANGED;
     }
 
     public boolean trackByState(final @NotNull BlockState state) {
@@ -109,11 +115,17 @@ public final class BukkitTrackingManager {
             return ChangeResult.UNCHANGED;
         }
 
-        if (!this.fireChange(new BlockChangeEvent(block, BlockChangeType.CREATED))) {
+        final BlockChangeEvent event = new BlockChangeEvent(block, BlockChangeType.CREATED);
+        if (!this.fireChange(event)) {
             return ChangeResult.CANCELLED;
         }
 
-        return this.rawTrackByState(state) ? ChangeResult.CHANGED : ChangeResult.UNCHANGED;
+        if (!this.rawTrackByState(state)) {
+            return ChangeResult.UNCHANGED;
+        }
+
+        this.fireChanged(event);
+        return ChangeResult.CHANGED;
     }
 
     public boolean trackByStateIterable(final @NotNull Iterable<BlockState> states) {
@@ -140,9 +152,13 @@ public final class BukkitTrackingManager {
         }
 
         boolean changed = false;
-        for (final BlockState state : pending) {
-            changed |= this.rawTrackByState(state);
+        for (int i = 0; i < pending.size(); i++) {
+            if (this.rawTrackByState(pending.get(i))) {
+                changed = true;
+                this.fireChanged(events.get(i));
+            }
         }
+
         return changed ? ChangeResult.CHANGED : ChangeResult.UNCHANGED;
     }
 
@@ -159,11 +175,17 @@ public final class BukkitTrackingManager {
             return ChangeResult.UNCHANGED;
         }
 
-        if (!this.fireChange(new BlockChangeEvent(block, BlockChangeType.REMOVED, cancellationSupported))) {
+        final BlockChangeEvent event = new BlockChangeEvent(block, BlockChangeType.REMOVED, cancellationSupported);
+        if (!this.fireChange(event)) {
             return ChangeResult.CANCELLED;
         }
 
-        return this.rawUntrackByBlock(block) ? ChangeResult.CHANGED : ChangeResult.UNCHANGED;
+        if (!this.rawUntrackByBlock(block)) {
+            return ChangeResult.UNCHANGED;
+        }
+
+        this.fireChanged(event);
+        return ChangeResult.CHANGED;
     }
 
     public boolean untrackByState(final @NotNull BlockState state) {
@@ -176,11 +198,17 @@ public final class BukkitTrackingManager {
             return ChangeResult.UNCHANGED;
         }
 
-        if (!this.fireChange(new BlockChangeEvent(block, BlockChangeType.REMOVED))) {
+        final BlockChangeEvent event = new BlockChangeEvent(block, BlockChangeType.REMOVED);
+        if (!this.fireChange(event)) {
             return ChangeResult.CANCELLED;
         }
 
-        return this.rawUntrackByState(state) ? ChangeResult.CHANGED : ChangeResult.UNCHANGED;
+        if (!this.rawUntrackByState(state)) {
+            return ChangeResult.UNCHANGED;
+        }
+
+        this.fireChanged(event);
+        return ChangeResult.CHANGED;
     }
 
     public boolean untrackByBlockIterable(final @NotNull Iterable<Block> blocks) {
@@ -207,9 +235,13 @@ public final class BukkitTrackingManager {
         }
 
         boolean changed = false;
-        for (final Block block : pending) {
-            changed |= this.rawUntrackByBlock(block);
+        for (int i = 0; i < pending.size(); i++) {
+            if (this.rawUntrackByBlock(pending.get(i))) {
+                changed = true;
+                this.fireChanged(events.get(i));
+            }
         }
+
         return changed ? ChangeResult.CHANGED : ChangeResult.UNCHANGED;
     }
 
@@ -237,9 +269,13 @@ public final class BukkitTrackingManager {
         }
 
         boolean changed = false;
-        for (final BlockState state : pending) {
-            changed |= this.rawUntrackByState(state);
+        for (int i = 0; i < pending.size(); i++) {
+            if (this.rawUntrackByState(pending.get(i))) {
+                changed = true;
+                this.fireChanged(events.get(i));
+            }
         }
+
         return changed ? ChangeResult.CHANGED : ChangeResult.UNCHANGED;
     }
 
@@ -252,7 +288,8 @@ public final class BukkitTrackingManager {
             return ChangeResult.UNCHANGED;
         }
 
-        if (!this.fireChange(new BlockChangeEvent(from, BlockChangeType.MOVED, to))) {
+        final BlockChangeEvent event = new BlockChangeEvent(from, BlockChangeType.MOVED, to);
+        if (!this.fireChange(event)) {
             return ChangeResult.CANCELLED;
         }
 
@@ -261,6 +298,7 @@ public final class BukkitTrackingManager {
         }
 
         this.rawTrackByBlock(to);
+        this.fireChanged(event);
         return ChangeResult.CHANGED;
     }
 
@@ -272,36 +310,56 @@ public final class BukkitTrackingManager {
         return this.shiftByBlockListResult(blocks, direction, List.of(), null);
     }
 
-    @NotNull ChangeResult handlePistonExtend(final @NotNull Block piston, final @NotNull List<Block> blocks, final @NotNull BlockFace direction) {
+    @NotNull ChangeResult handlePistonExtend(
+            final @NotNull Block piston,
+            final @NotNull List<Block> blocks,
+            final @NotNull BlockFace direction
+    ) {
         final Block pistonHead = piston.getRelative(direction);
         final boolean pistonTracked = this.isTrackedByBlock(piston);
         final BlockChangeEvent headEvent = this.createSetTrackedEvent(pistonHead, pistonTracked);
-        return this.shiftByBlockListResult(blocks, direction, headEvent == null ? List.of() : List.of(headEvent), () -> {
-            if (pistonTracked) {
-                this.rawTrackByBlock(pistonHead);
-            } else {
-                this.rawUntrackByBlock(pistonHead);
-            }
-        });
+
+        return this.shiftByBlockListResult(
+                blocks,
+                direction,
+                headEvent == null ? List.of() : List.of(headEvent),
+                () -> {
+                    if (pistonTracked) {
+                        this.rawTrackByBlock(pistonHead);
+                    } else {
+                        this.rawUntrackByBlock(pistonHead);
+                    }
+                }
+        );
     }
 
-    @NotNull ChangeResult handlePistonRetract(final @NotNull Block piston, final boolean sticky, final @NotNull List<Block> blocks, final @NotNull BlockFace direction) {
+    @NotNull ChangeResult handlePistonRetract(
+            final @NotNull Block piston,
+            final boolean sticky,
+            final @NotNull List<Block> blocks,
+            final @NotNull BlockFace direction
+    ) {
         final List<BlockChangeEvent> extraEvents = new ArrayList<>();
         final Block pistonHead = piston.getRelative(direction.getOppositeFace());
         final boolean removeHead = this.isTrackedByBlock(piston) && this.isTrackedByBlock(pistonHead);
+
         if (removeHead) {
             extraEvents.add(new BlockChangeEvent(pistonHead, BlockChangeType.REMOVED));
         }
 
         final Runnable extraMutation = removeHead ? () -> this.rawUntrackByBlock(pistonHead) : null;
+
         if (!sticky) {
             if (extraEvents.isEmpty()) {
                 return ChangeResult.UNCHANGED;
             }
+
             if (!this.fireChanges(extraEvents)) {
                 return ChangeResult.CANCELLED;
             }
+
             extraMutation.run();
+            this.fireChanged(extraEvents.get(0));
             return ChangeResult.CHANGED;
         }
 
@@ -367,6 +425,7 @@ public final class BukkitTrackingManager {
             extraMutation.run();
         }
 
+        this.fireChanged(events);
         return ChangeResult.CHANGED;
     }
 
@@ -375,7 +434,11 @@ public final class BukkitTrackingManager {
         if (currentlyTracked == tracked) {
             return null;
         }
-        return new BlockChangeEvent(block, tracked ? BlockChangeType.CREATED : BlockChangeType.REMOVED);
+
+        return new BlockChangeEvent(
+                block,
+                tracked ? BlockChangeType.CREATED : BlockChangeType.REMOVED
+        );
     }
 
     private boolean fireChange(final @NotNull BlockChangeEvent event) {
@@ -388,7 +451,18 @@ public final class BukkitTrackingManager {
                 return false;
             }
         }
+
         return true;
+    }
+
+    private void fireChanged(final @NotNull BlockChangeEvent event) {
+        BlockTrackerAPI.notifyBlockChanged(event);
+    }
+
+    private void fireChanged(final @NotNull Iterable<BlockChangeEvent> events) {
+        for (final BlockChangeEvent event : events) {
+            this.fireChanged(event);
+        }
     }
 
     private boolean rawTrackByBlock(final @NotNull Block block) {

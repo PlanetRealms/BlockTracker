@@ -1,6 +1,5 @@
 package dev.krakenied.blocktracker.bukkit;
 
-import dev.krakenied.blocktracker.api.manager.AbstractTrackingManager;
 import io.papermc.paper.event.block.BlockBreakBlockEvent;
 import org.bukkit.Chunk;
 import org.bukkit.Material;
@@ -54,7 +53,7 @@ import java.util.List;
 public final class BukkitListener implements Listener {
 
     private final BukkitBlockTrackerPlugin plugin;
-    private final AbstractTrackingManager<World, Chunk, Block, BlockState, BlockFace> trackingManager;
+    private final BukkitTrackingManager trackingManager;
 
     public BukkitListener(final @NotNull BukkitBlockTrackerPlugin plugin) {
         this.plugin = plugin;

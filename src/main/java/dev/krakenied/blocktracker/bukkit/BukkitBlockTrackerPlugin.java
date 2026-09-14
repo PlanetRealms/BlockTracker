@@ -1,17 +1,13 @@
 package dev.krakenied.blocktracker.bukkit;
 
-import dev.krakenied.blocktracker.api.manager.AbstractTrackingManager;
-import org.bukkit.Chunk;
-import org.bukkit.World;
-import org.bukkit.block.Block;
-import org.bukkit.block.BlockFace;
-import org.bukkit.block.BlockState;
+import lombok.Getter;
 import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
 public final class BukkitBlockTrackerPlugin extends JavaPlugin {
 
+    @Getter
     private final BukkitTrackingManager trackingManager = new BukkitTrackingManager();
 
     @Override
@@ -28,10 +24,6 @@ public final class BukkitBlockTrackerPlugin extends JavaPlugin {
         this.trackingManager.terminateLoadedWorlds();
     }
 
-    public @NotNull AbstractTrackingManager<World, Chunk, Block, BlockState, BlockFace> getTrackingManager() {
-        return this.trackingManager;
-    }
-
     private void registerListeners() {
         this.getServer().getPluginManager().registerEvents(new BukkitListener(this), this);
     }
@@ -41,7 +33,7 @@ public final class BukkitBlockTrackerPlugin extends JavaPlugin {
     }
 
     @SuppressWarnings("unused")
-    public static boolean isTracked(final @NotNull Block block) {
+    public static boolean isTracked(final @NotNull org.bukkit.block.Block block) {
         return BukkitBlockTrackerAPI.isTracked(block);
     }
 }

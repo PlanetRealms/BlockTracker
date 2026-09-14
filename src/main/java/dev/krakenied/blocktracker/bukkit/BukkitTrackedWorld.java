@@ -1,6 +1,6 @@
 package dev.krakenied.blocktracker.bukkit;
 
-import dev.krakenied.blocktracker.api.object.AbstractTrackedWorld;
+import dev.krakenied.blocktracker.api.data.ChunkMap;
 import dev.krakenied.blocktracker.api.object.TrackedChunk;
 import org.bukkit.Chunk;
 import org.bukkit.block.Block;
@@ -9,46 +9,16 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.jetbrains.annotations.NotNull;
 
-public final class BukkitTrackedWorld extends AbstractTrackedWorld<Chunk, Block, BlockState> {
+public final class BukkitTrackedWorld {
 
-    @Override
-    public int getBlockX(final @NotNull Block block) {
-        return block.getX();
-    }
+    private final ChunkMap chunkMap = new ChunkMap();
 
-    @Override
-    public int getBlockY(final @NotNull Block block) {
-        return block.getY();
-    }
-
-    @Override
-    public int getBlockZ(final @NotNull Block block) {
-        return block.getZ();
-    }
-
-    @Override
-    public int getStateX(final @NotNull BlockState state) {
-        return state.getX();
-    }
-
-    @Override
-    public int getStateY(final @NotNull BlockState state) {
-        return state.getY();
-    }
-
-    @Override
-    public int getStateZ(final @NotNull BlockState state) {
-        return state.getZ();
-    }
-
-    @Override
     public void initializeChunk(final @NotNull Chunk chunk) {
         final PersistentDataContainer pdc = chunk.getPersistentDataContainer();
         final int[] data = pdc.get(BukkitConstants.DATA_KEY, PersistentDataType.INTEGER_ARRAY);
         this.chunkMap.put(chunk.getX(), chunk.getZ(), new TrackedChunk(data));
     }
 
-    @Override
     public void terminateChunk(final @NotNull Chunk chunk) {
         final TrackedChunk trackedChunk = this.chunkMap.get(chunk.getX(), chunk.getZ());
         if (trackedChunk == null) {
@@ -61,5 +31,38 @@ public final class BukkitTrackedWorld extends AbstractTrackedWorld<Chunk, Block,
         } else {
             pdc.set(BukkitConstants.DATA_KEY, PersistentDataType.INTEGER_ARRAY, trackedChunk.toIntArray());
         }
+    }
+
+    public boolean isTrackedByBlock(final @NotNull Block block) {
+        final TrackedChunk chunk = this.getTrackedChunkByBlock(block);
+        return chunk != null && chunk.isTracked(block.getX(), block.getY(), block.getZ());
+    }
+
+    public boolean trackByBlock(final @NotNull Block block) {
+        final TrackedChunk chunk = this.getTrackedChunkByBlock(block);
+        return chunk != null && chunk.track(block.getX(), block.getY(), block.getZ());
+    }
+
+    public boolean trackByState(final @NotNull BlockState state) {
+        final TrackedChunk chunk = this.getTrackedChunkByState(state);
+        return chunk != null && chunk.track(state.getX(), state.getY(), state.getZ());
+    }
+
+    public boolean untrackByBlock(final @NotNull Block block) {
+        final TrackedChunk chunk = this.getTrackedChunkByBlock(block);
+        return chunk != null && chunk.untrack(block.getX(), block.getY(), block.getZ());
+    }
+
+    public boolean untrackByState(final @NotNull BlockState state) {
+        final TrackedChunk chunk = this.getTrackedChunkByState(state);
+        return chunk != null && chunk.untrack(state.getX(), state.getY(), state.getZ());
+    }
+
+    private TrackedChunk getTrackedChunkByBlock(final @NotNull Block block) {
+        return this.chunkMap.getByBlock(block.getX(), block.getZ());
+    }
+
+    private TrackedChunk getTrackedChunkByState(final @NotNull BlockState state) {
+        return this.chunkMap.getByBlock(state.getX(), state.getZ());
     }
 }

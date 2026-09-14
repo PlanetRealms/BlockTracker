@@ -1,6 +1,7 @@
 package dev.krakenied.blocktracker.bukkit;
 
-import dev.krakenied.blocktracker.event.BlockChangeEvent;
+import dev.krakenied.blocktracker.api.event.BlockChangeEvent;
+import lombok.Getter;
 import org.bukkit.block.Block;
 import org.jetbrains.annotations.NotNull;
 
@@ -11,15 +12,12 @@ import java.util.function.Consumer;
 @SuppressWarnings("unused")
 public final class BukkitBlockTrackerAPI {
 
+    @Getter
     private static BukkitBlockTrackerPlugin instance;
     private static final List<Consumer<BlockChangeEvent>> callbacks = new CopyOnWriteArrayList<>();
 
     static void setInstance(final @NotNull BukkitBlockTrackerPlugin instance) {
         BukkitBlockTrackerAPI.instance = instance;
-    }
-
-    public static @NotNull BukkitBlockTrackerPlugin getInstance() {
-        return BukkitBlockTrackerAPI.instance;
     }
 
     public static boolean isTracked(final @NotNull Block block) {

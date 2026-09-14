@@ -2,6 +2,8 @@ package dev.krakenied.blocktracker.bukkit;
 
 import dev.krakenied.blocktracker.api.manager.AbstractTrackingManager;
 import dev.krakenied.blocktracker.api.object.AbstractTrackedWorld;
+import dev.krakenied.blocktracker.event.BlockChangeEvent;
+import dev.krakenied.blocktracker.event.BlockChangeType;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.World;
@@ -52,5 +54,50 @@ public final class BukkitTrackingManager extends AbstractTrackingManager<World, 
     @Override
     public @NotNull Iterable<World> getLoadedWorlds() {
         return Bukkit.getWorlds();
+    }
+
+    @Override
+    public boolean trackByBlock(final @NotNull Block block) {
+        final boolean tracked = super.trackByBlock(block);
+        if (tracked) {
+            BukkitBlockTrackerAPI.notifyBlockChange(new BlockChangeEvent(block, BlockChangeType.TRACK));
+        }
+        return tracked;
+    }
+
+    @Override
+    public boolean trackByState(final @NotNull BlockState state) {
+        final boolean tracked = super.trackByState(state);
+        if (tracked) {
+            BukkitBlockTrackerAPI.notifyBlockChange(new BlockChangeEvent(state.getBlock(), BlockChangeType.TRACK));
+        }
+        return tracked;
+    }
+
+    @Override
+    public boolean untrackByBlock(final @NotNull Block block) {
+        final boolean untracked = super.untrackByBlock(block);
+        if (untracked) {
+            BukkitBlockTrackerAPI.notifyBlockChange(new BlockChangeEvent(block, BlockChangeType.UNTRACK));
+        }
+        return untracked;
+    }
+
+    @Override
+    public boolean untrackByState(final @NotNull BlockState state) {
+        final boolean untracked = super.untrackByState(state);
+        if (untracked) {
+            BukkitBlockTrackerAPI.notifyBlockChange(new BlockChangeEvent(state.getBlock(), BlockChangeType.UNTRACK));
+        }
+        return untracked;
+    }
+
+    @Override
+    public void move(final @NotNull Block from, final @NotNull Block to) {
+        final boolean wasTracked = this.isTrackedByBlock(from);
+        super.move(from, to);
+        if (wasTracked) {
+            BukkitBlockTrackerAPI.notifyBlockChange(new BlockChangeEvent(from, BlockChangeType.MOVE, to));
+        }
     }
 }

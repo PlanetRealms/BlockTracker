@@ -1,16 +1,8 @@
 package dev.krakenied.blocktracker.bukkit;
 
-import dev.krakenied.blocktracker.api.config.AbstractBlockTrackerConfig;
-import dev.krakenied.blocktracker.api.data.ChunkMap;
-import dev.krakenied.blocktracker.api.data.PositionSet;
-import dev.krakenied.blocktracker.api.manager.AbstractTrackingManager;
 import io.papermc.paper.event.block.BlockBreakBlockEvent;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.Chunk;
 import org.bukkit.Material;
-import org.bukkit.Tag;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -23,15 +15,12 @@ import org.bukkit.block.data.type.PistonHead;
 import org.bukkit.block.data.type.SmallDripleaf;
 import org.bukkit.block.data.type.Stairs;
 import org.bukkit.block.data.type.TrapDoor;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.FallingBlock;
 import org.bukkit.entity.Player;
-import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockBurnEvent;
 import org.bukkit.event.block.BlockExplodeEvent;
@@ -51,78 +40,24 @@ import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.entity.EntitySpawnEvent;
 import org.bukkit.event.player.PlayerBucketEmptyEvent;
 import org.bukkit.event.player.PlayerBucketFillEvent;
-import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.event.world.ChunkUnloadEvent;
 import org.bukkit.event.world.StructureGrowEvent;
 import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.event.world.WorldUnloadEvent;
-import org.bukkit.inventory.ItemStack;
 import org.bukkit.metadata.FixedMetadataValue;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.EnumSet;
 import java.util.List;
 
 public final class BukkitListener implements Listener {
 
     private final BukkitBlockTrackerPlugin plugin;
-    private final AbstractBlockTrackerConfig<YamlConfiguration, Material> blockTrackerConfig;
-    private final AbstractTrackingManager<World, Chunk, Block, BlockState, BlockFace> trackingManager;
+    private final BukkitTrackingManager trackingManager;
 
     public BukkitListener(final @NotNull BukkitBlockTrackerPlugin plugin) {
         this.plugin = plugin;
-        this.blockTrackerConfig = plugin.getBlockTrackerConfig();
         this.trackingManager = plugin.getTrackingManager();
-    }
-
-    // Debugging wand
-
-    @EventHandler
-    public void onPlayerInteract(final @NotNull PlayerInteractEvent event) {
-        final Block clickedBlock = event.getClickedBlock();
-        if (clickedBlock == null) {
-            return;
-        }
-
-        final ItemStack item = event.getItem();
-        if (item == null || item.getType() != Material.HEART_OF_THE_SEA) {
-            return;
-        }
-
-        final Player player = event.getPlayer();
-        if (!player.hasPermission("blocktracker.debug")) {
-            return;
-        }
-
-        final Block block;
-        final Action action = event.getAction();
-        if (action.isRightClick()) {
-            final BlockFace relative = event.getBlockFace();
-            block = clickedBlock.getRelative(relative);
-        } else {
-            block = clickedBlock;
-        }
-
-        event.setUseInteractedBlock(Event.Result.DENY);
-
-        final Component debugMessage = this.blockTrackerComponent(block);
-        player.sendMessage(debugMessage);
-    }
-
-    private @NotNull Component blockTrackerComponent(final @NotNull Block block) {
-        return Component.textOfChildren(
-                Component.text("BlockTracker", TextColor.color(0xFFC000)),
-                Component.space(),
-                Component.text('(', NamedTextColor.DARK_GRAY),
-                Component.text("B" + PositionSet.blockKey(block.getX(), block.getY(), block.getZ()), TextColor.color(0xBE02ED)),
-                Component.text('/', TextColor.color(0x808080)),
-                Component.text("C" + ChunkMap.chunkKey(block.getX() >> 4, block.getZ()), TextColor.color(0x39DB0B)),
-                Component.text(')', NamedTextColor.DARK_GRAY),
-                Component.text(':', TextColor.color(0xFFC000)),
-                Component.space(),
-                Component.text(this.trackingManager.isTrackedByBlock(block), NamedTextColor.GRAY)
-        );
     }
 
     // Worlds and chunks
@@ -156,16 +91,6 @@ public final class BukkitListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockPlace(final @NotNull BlockPlaceEvent event) {
         final Block block = event.getBlock();
-
-        final EnumSet<Material> blocksToIgnore = this.blockTrackerConfig.blocksToIgnoreOnBlockPlace.get(block.getType());
-        if (blocksToIgnore != null) {
-            final BlockState replacedState = event.getBlockReplacedState();
-
-            if (blocksToIgnore.contains(replacedState.getType())) {
-                return;
-            }
-        }
-
         this.trackingManager.trackByBlock(block);
     }
 
@@ -212,13 +137,6 @@ public final class BukkitListener implements Listener {
         final BlockFace direction = event.getDirection();
         this.trackingManager.shiftByBlockList(blocks, direction);
 
-        if (!this.blockTrackerConfig.trackPistonHeads) {
-            // this is supported at the moment only on my fork
-            // we need to wait for https://github.com/PaperMC/Paper/pull/9258/
-
-            return;
-        }
-
         final Block block = event.getBlock();
         final boolean pistonTracked = this.trackingManager.isTrackedByBlock(block);
 
@@ -232,16 +150,11 @@ public final class BukkitListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockPistonRetract(final @NotNull BlockPistonRetractEvent event) {
-        if (this.blockTrackerConfig.trackPistonHeads) {
-            // this is supported at the moment only on my fork
-            // we need to wait for https://github.com/PaperMC/Paper/pull/9258/
-
-            final Block block = event.getBlock();
-            if (this.trackingManager.isTrackedByBlock(block)) {
-                final BlockFace pistonHeadFace = event.getDirection().getOppositeFace();
-                final Block pistonHeadBlock = block.getRelative(pistonHeadFace);
-                this.trackingManager.untrackByBlock(pistonHeadBlock);
-            }
+        final Block block = event.getBlock();
+        if (this.trackingManager.isTrackedByBlock(block)) {
+            final BlockFace pistonHeadFace = event.getDirection().getOppositeFace();
+            final Block pistonHeadBlock = block.getRelative(pistonHeadFace);
+            this.trackingManager.untrackByBlock(pistonHeadBlock);
         }
 
         if (!event.isSticky()) {
@@ -253,19 +166,12 @@ public final class BukkitListener implements Listener {
         this.trackingManager.shiftByBlockList(blocks, direction);
     }
 
-    // Trees
+    // Trees & Structure growth
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onStructureGrow(final @NotNull StructureGrowEvent event) {
         final List<BlockState> states = event.getBlocks();
-        final Player player = event.getPlayer();
-
-        //noinspection StatementWithEmptyBody
-        if (player != null && !this.blockTrackerConfig.disableBoneMealTracking) {
-            // TODO: it's already handled by BlockFertilizeEvent
-        } else {
-            this.trackingManager.untrackByStateIterable(states);
-        }
+        this.trackingManager.untrackByStateIterable(states);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -274,35 +180,12 @@ public final class BukkitListener implements Listener {
         final Material type = block.getType();
         final List<BlockState> destinations = event.getBlocks();
 
-        final EnumSet<Material> destinationsToUntrack = this.blockTrackerConfig.destinationsToUntrackOnBoneMeal.get(type);
-        if (destinationsToUntrack != null) {
-            for (final BlockState destination : destinations) {
-                if (destinationsToUntrack.contains(destination.getType())) {
-                    this.trackingManager.untrackByState(destination);
-                    continue;
-                }
-
-                if (this.blockTrackerConfig.disableBoneMealTracking) {
-                    continue;
-                }
-
-                this.trackingManager.trackByState(destination);
-            }
-        }
-
-        if (this.blockTrackerConfig.disableBoneMealTracking) {
-            return;
-        }
-
-        // these cannot be grown without bone meal
         if (type == Material.CRIMSON_FUNGUS || type == Material.WARPED_FUNGUS) {
             this.trackingManager.untrackByBlock(block);
             return;
         }
 
-        if (destinationsToUntrack == null) {
-            this.trackingManager.trackByStateIterable(destinations);
-        }
+        this.trackingManager.trackByStateIterable(destinations);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -347,44 +230,11 @@ public final class BukkitListener implements Listener {
         this.trackingManager.trackByBlock(block);
     }
 
-    // Frost Walker ice and other blocks fading
+    // Ice and other blocks fading
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockFade(final @NotNull BlockFadeEvent event) {
         final Block block = event.getBlock();
-
-        // TODO: somehow replace this logic with switch for better performance?
-        if (!this.trackingManager.isTrackedByBlock(block)) {
-            return;
-        }
-
-        final Material blockType = block.getType();
-
-        if (Tag.DIRT.isTagged(blockType)) {
-            return;
-        }
-
-        if (Tag.CORALS.isTagged(blockType) || Tag.CORAL_BLOCKS.isTagged(blockType) || Tag.CORAL_PLANTS.isTagged(blockType)) {
-            return;
-        }
-
-        if (Tag.NYLIUM.isTagged(blockType)) {
-            return;
-        }
-
-        if (Tag.REDSTONE_ORES.isTagged(blockType)) {
-            return;
-        }
-
-        if (blockType == Material.SCAFFOLDING) {
-            return;
-        }
-
-        // blockType cannot be null so no need to check if the constant is
-        if (blockType == BukkitConstants.SNIFFER_EGG_MATERIAL) {
-            return;
-        }
-
         this.trackingManager.untrackByBlock(block);
     }
 
@@ -421,17 +271,13 @@ public final class BukkitListener implements Listener {
         this.trackingManager.trackByBlock(block);
     }
 
-    // Untrack actually all the Minecraft weirdness
+    // Untrack multi-block structures (beds, double plants, pistons)
 
     private void untrackCustom(final @NotNull Block block, final @NotNull BlockData blockData) {
         this.trackingManager.untrackByBlock(block);
 
         final Block secondBlock;
 
-        // Double vertical blocks
-        //
-        // I don't want it to be switch due to readability reasons
-        //noinspection IfCanBeSwitch
         if (blockData instanceof final Bisected bisected && !(blockData instanceof SmallDripleaf || blockData instanceof Stairs || blockData instanceof TrapDoor)) {
             final Bisected.Half half = bisected.getHalf();
 
@@ -495,32 +341,15 @@ public final class BukkitListener implements Listener {
         this.trackingManager.untrackByBlock(block);
     }
 
-    // Mycelium spreading
+    // Block spreading (e.g., Mycelium, Sculk, Chorus, Fire)
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockSpread(final @NotNull BlockSpreadEvent event) {
         final Block source = event.getSource();
-
-        final Material sourceType = source.getType();
-        if (this.plugin.getBlockTrackerConfig().sourcesToIgnoreOnBlockSpread.contains(sourceType)) {
-            return;
-        }
-
         final Block block = event.getBlock();
 
-        // TODO: in case we wanted to handle it another way
-        // && (this.plugin.getBlockTrackerConfig().disableBoneMealTracking || block.getType() != Material.HANGING_ROOTS)
-        if (this.plugin.getBlockTrackerConfig().disableBlockSpreadTracking) {
-            if (this.plugin.getBlockTrackerConfig().sourcesToUntrackOnBlockSpread.contains(sourceType)) {
-                this.trackingManager.untrackByBlock(source);
-            }
-
-            this.trackingManager.untrackByBlock(block);
-        } else {
-            final boolean sourceTracked = this.trackingManager.isTrackedByBlock(source);
-
-            if (sourceTracked) {
-                this.trackingManager.trackByBlock(block);
-            }
+        final boolean sourceTracked = this.trackingManager.isTrackedByBlock(source);
+        if (sourceTracked) {
+            this.trackingManager.trackByBlock(block);
         }
     }
 }
